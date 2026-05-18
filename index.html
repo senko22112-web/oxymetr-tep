@@ -114,21 +114,21 @@
         }
 
         button:disabled,
-        select:disabled {
+        input[type="text"]:disabled {
             background: #21262d !important;
             color: #8b949e !important;
             cursor: not-allowed;
             border-color: #30363d;
         }
 
-        select {
+        input[type="text"] {
             background: #0d1117;
             color: #e6edf3;
             border: 1px solid #30363d;
             padding: 10px;
             font-size: 1rem;
             border-radius: 6px;
-            width: 100%;
+            width: calc(100% - 22px);
             margin-bottom: 15px;
             outline: none;
         }
@@ -171,14 +171,8 @@
 
     <div class="row">
         <div class="col-setup">
-            <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Vyberte
-                pacienta:</label>
-            <select id="patientSelect">
-                <option value="Jana">Jana (Pacient 1)</option>
-                <option value="Petr">Petr (Pacient 2)</option>
-                <option value="Eliska">Eliška (Pacient 3)</option>
-                <option value="Anonymni">Anonymní měření</option>
-            </select>
+            <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Jméno pacienta:</label>
+            <input type="text" id="patientInput" value="Anonymní" placeholder="Napište jméno pacienta...">
 
             <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Měřicí
                 přístroj:</label>
@@ -218,36 +212,30 @@
         let port;
         let reader;
         let inputBuffer = "";
-
-        // Pole pro ukládání historie měření pro CSV export
         let csvDataStore = [];
 
-        // Inicializace Chart.js grafu v temném designu
-            const ctx = document.getElementById('vitalChart').getContext('2d');
-            const vitalChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: 'Tep (BPM)', data: [], borderColor: '#ff7b72', backgroundColor: '#ff7b72', tension: 0.2, yAxisID: 'y' },
-                        { label: 'Kyslík (SpO2 %)', data: [], borderColor: '#79c0ff', backgroundColor: '#79c0ff', tension: 0.2, yAxisID: 'y1' }
-                    ]
+        const ctx = document.getElementById('vitalChart').getContext('2d');
+        const vitalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Tep (BPM)', data: [], borderColor: '#ff7b72', backgroundColor: '#ff7b72', tension: 0.2, yAxisID: 'y' },
+                    { label: 'Kyslík (SpO2 %)', data: [], borderColor: '#79c0ff', backgroundColor: '#79c0ff', tension: 0.2, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { color: '#21262d' }, ticks: { color: '#8b949e' } },
+                    y: { position: 'left', grid: { color: '#21262d' }, ticks: { color: '#ff7b72' }, min: 40, max: 160 },
+                    y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#79c0ff' }, min: 80, max: 100 }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { grid: { color: '#21262d' }, ticks: { color: '#8b949e' } },
-                        y: { position: 'left', grid: { color: '#21262d' }, ticks: { color: '#ff7b72' }, min: 40, max: 160 },
-                        y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#79c0ff' }, min: 80, max: 100 }
-                    }, // ◄ Tady se správně uzavírají "scales"
-                    plugins: {
-                        legend: { labels: { color: '#e6edf3' } }
-                    } // ◄ Tady chyběla závorka, teď už je to v pořádku
-                } // ◄ Uzavření celého bloku "options"
-            });
+                plugins: { legend: { labels: { color: '#e6edf3' } } }
+            }
+        });
 
-        // Hlavní událost po kliknutí na tlačítko Start
         document.getElementById('connectBtn').addEventListener('click', async () => {
             if (!('serial' in navigator)) {
                 alert("Tvůj prohlížeč nepodporuje Web Serial API. Spusť to v Google Chrome.");
@@ -258,14 +246,12 @@
                 port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 9600 });
 
-                // Změna stavu v UI a uzamčení ovládání
                 document.getElementById('statusBox').innerText = "▶ Měření probíhá...";
                 document.getElementById('statusBox').className = "status-text status-run";
                 document.getElementById('connectBtn').disabled = true;
-                document.getElementById('patientSelect').disabled = true;
-                document.getElementById('csvBtn').disabled = false; // Aktivuje stažení CSV
+                document.getElementById('patientInput').disabled = true; // Zamkne textové pole během měření
+                document.getElementById('csvBtn').disabled = false;
 
-                // Vyčištění staré historie před novým měřením
                 csvDataStore = [];
 
                 const textDecoder = new TextDecoderStream();
@@ -288,26 +274,24 @@
                                 let tep = parseInt(casti[0].trim());
                                 let kyslik = parseInt(casti[1].trim());
 
-                                // Filtrování chybových stavů
                                 if (tep >= 40 && tep <= 200 && kyslik >= 90 && kyslik <= 100) {
                                     let nyni = new Date();
                                     let casText = nyni.toTimeString().split(' ')[0];
-                                    let aktualniPacient = document.getElementById('patientSelect').value;
 
-                                    // 1. Aktualizace karet na webu
+                                    // Načte text, který uživatel ručně napsal do políčka (pokud je prázdný, dá "Anonymni")
+                                    let jmenoZInputu = document.getElementById('patientInput').value.trim() || "Anonymni";
+
                                     document.getElementById('tepVal').innerText = tep;
                                     document.getElementById('kyslikVal').innerText = kyslik + " %";
                                     document.getElementById('casVal').innerText = casText;
 
-                                    // 2. Uložení vteřiny do lokální paměti pro CSV export
                                     csvDataStore.push({
-                                        Pacient: aktualniPacient,
+                                        Pacient: jmenoZInputu,
                                         Cas: casText,
                                         Tep: tep,
                                         Kyslik: kyslik
                                     });
 
-                                    // 3. Přidání dat do grafu
                                     vitalChart.data.labels.push(casText);
                                     vitalChart.data.datasets[0].data.push(tep);
                                     vitalChart.data.datasets[1].data.push(kyslik);
@@ -330,38 +314,36 @@
                 document.getElementById('statusBox').innerText = "⏹ Připraveno";
                 document.getElementById('statusBox').className = "status-text status-ready";
                 document.getElementById('connectBtn').disabled = false;
-                document.getElementById('patientSelect').disabled = false;
+                document.getElementById('patientInput').disabled = false;
             }
         });
 
-        // Logika pro vygenerování a stažení CSV souboru
         document.getElementById('csvBtn').addEventListener('click', () => {
             if (csvDataStore.length === 0) {
                 alert("Zatím nebyla nasbírána žádná data k exportu.");
                 return;
             }
 
-            // Hlavička CSV souboru
             let csvContent = "data:text/csv;charset=utf-8,Pacient,Cas Meredi,Tep (BPM),Kyslik (SpO2 %)\n";
 
-            // Projití uložených záznamů a poskládání řádků
             csvDataStore.forEach(row => {
                 csvContent += `${row.Pacient},${row.Cas},${row.Tep},${row.Kyslik}\n`;
             });
 
-            // Vytvoření skrytého stahovacího odkazu v prohlížeči
             const encodedUri = encodeURI(csvContent);
             const downloadAnchor = document.createElement("a");
 
-            // Nastavení názvu souboru podle vybraného pacienta a dnešního data
-            let jmeno = document.getElementById('patientSelect').value;
+            // Vezme jméno z políčka pro název souboru
+            let jmenoSouboru = document.getElementById('patientInput').value.trim() || "Anonymni";
+            // Odstranění případné diakritiky z názvu souboru, aby to na PC nedělalo neplechu
+            jmenoSouboru = jmenoSouboru.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
             let dnes = new Date().toISOString().slice(0, 10);
 
             downloadAnchor.setAttribute("href", encodedUri);
-            downloadAnchor.setAttribute("download", `mereni_${jmeno}_${dnes}.csv`);
+            downloadAnchor.setAttribute("download", `mereni_${jmenoSouboru}_${dnes}.csv`);
             document.body.appendChild(downloadAnchor);
 
-            // Simulace kliknutí pro spuštění stahování
             downloadAnchor.click();
             document.body.removeChild(downloadAnchor);
         });
