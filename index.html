@@ -24,7 +24,7 @@
             color: #e6edf3;
         }
 
-        /* Rozvržení jako ve Streamlitu */
+
         .row {
             display: flex;
             gap: 20px;
@@ -175,7 +175,7 @@
         let port;
         let reader;
         let inputBuffer = "";
-        
+
         // Inicializace Chart.js grafu v temném designu
         const ctx = document.getElementById('vitalChart').getContext('2d');
         const vitalChart = new Chart(ctx, {
@@ -225,20 +225,20 @@
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-                    
+
                     if (value) {
                         inputBuffer += value;
-                        
+
                         // Máme celý řádek?
                         if (inputBuffer.includes("\n")) {
                             let radek = inputBuffer.trim();
                             inputBuffer = ""; // Smazat pro další kolo
-                            
+
                             if (radek.includes(",")) {
                                 let casti = radek.split(",");
                                 let tep = parseInt(casti[0].trim());
                                 let kyslik = parseInt(casti[1].trim());
-                                
+
                                 // Použití tvého přesného FILTRU z Pythonu
                                 if (tep >= 40 && tep <= 200 && kyslik >= 90 && kyslik <= 100) {
                                     let nyni = new Date();
