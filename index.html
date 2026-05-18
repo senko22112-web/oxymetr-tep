@@ -324,7 +324,7 @@
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,Pacient,Cas Meredi,Tep (BPM),Kyslik (SpO2 %)\n";
+            let csvContent = "data:text/csv;charset=utf-8,Pacient, Cas, Tep (BPM), Kyslik (SpO2 %)\n";
 
             csvDataStore.forEach(row => {
                 csvContent += `${row.Pacient},${row.Cas},${row.Tep},${row.Kyslik}\n`;
