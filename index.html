@@ -71,17 +71,9 @@
             font-family: monospace;
         }
 
-        .red {
-            color: #ff7b72;
-        }
-
-        .blu {
-            color: #79c0ff;
-        }
-
-        .grn {
-            color: #56d364;
-        }
+        .red { color: #ff7b72; }
+        .blu { color: #79c0ff; }
+        .grn { color: #56d364; }
 
         /* Tlačítka a design inputů */
         button {
@@ -96,22 +88,11 @@
             margin-top: 5px;
         }
 
-        .btn-start {
-            background: #238636;
-        }
+        .btn-start { background: #238636; }
+        .btn-start:hover { background: #2ea043; }
 
-        .btn-start:hover {
-            background: #2ea043;
-        }
-
-        .btn-csv {
-            background: #1f6feb;
-            margin-top: 10px;
-        }
-
-        .btn-csv:hover {
-            background: #388bfd;
-        }
+        .btn-csv { background: #1f6feb; margin-top: 10px; }
+        .btn-csv:hover { background: #388bfd; }
 
         button:disabled,
         input[type="text"]:disabled {
@@ -174,15 +155,13 @@
             <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Jméno pacienta:</label>
             <input type="text" id="patientInput" placeholder="Napište jméno pacienta...">
 
-            <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Měřicí
-                přístroj:</label>
+            <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Měřicí přístroj:</label>
             <button id="connectBtn" class="btn-start">▶ START MĚŘENÍ (PŘIPOJIT BLUETOOTH)</button>
         </div>
 
         <div class="col-status">
             <div>
-                <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Stav
-                    systému</label>
+                <label style="display:block; margin-bottom: 8px; color: #8b949e; font-weight: bold;">Stav systému</label>
                 <div id="statusBox" class="status-text status-ready">⏹ Připraveno</div>
             </div>
             <button id="csvBtn" class="btn-csv" disabled>💾 ULOŽIT DATA DO CSV</button>
@@ -249,10 +228,11 @@
                 document.getElementById('statusBox').innerText = "▶ Měření probíhá...";
                 document.getElementById('statusBox').className = "status-text status-run";
                 document.getElementById('connectBtn').disabled = true;
-                document.getElementById('patientInput').disabled = true; // Zamkne textové pole během měření
+                document.getElementById('patientInput').disabled = true;
                 document.getElementById('csvBtn').disabled = false;
 
                 csvDataStore = [];
+                inputBuffer = ""; // Reset bufferu před startem
 
                 const textDecoder = new TextDecoderStream();
                 const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
@@ -265,44 +245,49 @@
                     if (value) {
                         inputBuffer += value;
 
-                        if (inputBuffer.includes("\n")) {
-                            let radek = inputBuffer.trim();
-                            inputBuffer = "";
+                        // STABILNÍ ZPRACOVÁNÍ BUFFERU: Dokud jsou v bufferu konce řádků, zpracovávej je
+                        while (inputBuffer.includes("\n")) {
+                            let index = inputBuffer.indexOf("\n");
+                            let radek = inputBuffer.substring(0, index).trim();
+                            inputBuffer = inputBuffer.substring(index + 1); // Odřízne pouze zpracovaný řádek, zbytek nechá!
 
                             if (radek.includes(",")) {
                                 let casti = radek.split(",");
-                                let tep = parseInt(casti[0].trim());
-                                let kyslik = parseInt(casti[1].trim());
+                                if (casti.length >= 2) {
+                                    let tep = parseInt(casti[0].trim());
+                                    let kyslik = parseInt(casti[1].trim());
 
-                                if (tep >= 40 && tep <= 200 && kyslik >= 90 && kyslik <= 100) {
-                                    let nyni = new Date();
-                                    let casText = nyni.toTimeString().split(' ')[0];
+                                    // Kontrola validity čísel
+                                    if (!isNaN(tep) && !isNaN(kyslik)) {
+                                        if (tep >= 40 && tep <= 200 && kyslik >= 90 && kyslik <= 100) {
+                                            let nyni = new Date();
+                                            let casText = nyni.toTimeString().split(' ')[0];
+                                            let jmenoZInputu = document.getElementById('patientInput').value.trim() || "Anonymni";
 
-                                    // Načte text, který uživatel ručně napsal do políčka (pokud je prázdný, dá "Anonymni")
-                                    let jmenoZInputu = document.getElementById('patientInput').value.trim() || "Anonymni";
+                                            document.getElementById('tepVal').innerText = tep;
+                                            document.getElementById('kyslikVal').innerText = kyslik + " %";
+                                            document.getElementById('casVal').innerText = casText;
 
-                                    document.getElementById('tepVal').innerText = tep;
-                                    document.getElementById('kyslikVal').innerText = kyslik + " %";
-                                    document.getElementById('casVal').innerText = casText;
+                                            csvDataStore.push({
+                                                Pacient: jmenoZInputu,
+                                                Cas: casText,
+                                                Tep: tep,
+                                                Kyslik: kyslik
+                                            });
 
-                                    csvDataStore.push({
-                                        Pacient: jmenoZInputu,
-                                        Cas: casText,
-                                        Tep: tep,
-                                        Kyslik: kyslik
-                                    });
+                                            vitalChart.data.labels.push(casText);
+                                            vitalChart.data.datasets[0].data.push(tep);
+                                            vitalChart.data.datasets[1].data.push(kyslik);
 
-                                    vitalChart.data.labels.push(casText);
-                                    vitalChart.data.datasets[0].data.push(tep);
-                                    vitalChart.data.datasets[1].data.push(kyslik);
+                                            if (vitalChart.data.labels.length > 20) {
+                                                vitalChart.data.labels.shift();
+                                                vitalChart.data.datasets[0].data.shift();
+                                                vitalChart.data.datasets[1].data.shift();
+                                            }
 
-                                    if (vitalChart.data.labels.length > 20) {
-                                        vitalChart.data.labels.shift();
-                                        vitalChart.data.datasets[0].data.shift();
-                                        vitalChart.data.datasets[1].data.shift();
+                                            vitalChart.update();
+                                        }
                                     }
-
-                                    vitalChart.update();
                                 }
                             }
                         }
@@ -324,7 +309,7 @@
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,Pacient, Cas, Tep (BPM), Kyslik (SpO2 %)\n";
+            let csvContent = "data:text/csv;charset=utf-8,Pacient,Cas,Tep (BPM),Kyslik (SpO2 %)\n";
 
             csvDataStore.forEach(row => {
                 csvContent += `${row.Pacient},${row.Cas},${row.Tep},${row.Kyslik}\n`;
@@ -333,9 +318,7 @@
             const encodedUri = encodeURI(csvContent);
             const downloadAnchor = document.createElement("a");
 
-            // Vezme jméno z políčka pro název souboru
             let jmenoSouboru = document.getElementById('patientInput').value.trim() || "Anonymni";
-            // Odstranění případné diakritiky z názvu souboru, aby to na PC nedělalo neplechu
             jmenoSouboru = jmenoSouboru.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
             let dnes = new Date().toISOString().slice(0, 10);
