@@ -52,7 +52,7 @@ void loop() {
   // 2. AKTUALIZACE KYSLÍKU KAŽDÝCH 10 SEKUND
   if (millis() - lastOxygenUpdate > 10000) { // Změněno na 10 sekund
     
-    // Rychle načteme 25 vzorků (to trvá cca 1 sekundu)
+    // 25 vzorků (to trvá cca 1 sekundu)
     for (byte i = 0 ; i < 25 ; i++) {
       while (particleSensor.available() == false) particleSensor.check();
       redBuffer[i] = (uint16_t)particleSensor.getRed();
@@ -60,11 +60,10 @@ void loop() {
       particleSensor.nextSample();
     }
     
-    // Spočítáme kyslík z těch 25 vzorků
+  
     maxim_heart_rate_and_oxygen_saturation(irBuffer, 25, redBuffer, &spo2, &validSPO2, &dummyHR, &dummyVHR);
     
     // ODESLÁNÍ DAT PŘES BLUETOOTH
-    // Posíláme nejnovější vypočítaný tep a kyslík
     btSerial.print(beatAvg);
     btSerial.print(",");
     if (validSPO2 && spo2 > 80 && spo2 <= 100) {
