@@ -14,7 +14,7 @@ int beatAvg = 75;
 // Proměnné pro kyslík
 uint16_t irBuffer[25]; 
 uint16_t redBuffer[25];
-int32_t spo2 = 98;
+int32_t spo2
 int8_t validSPO2;
 int32_t dummyHR; 
 int8_t dummyVHR;
@@ -39,7 +39,6 @@ void loop() {
   long irValue = particleSensor.getIR();
 
   // 1. NEUSTÁLÉ SLEDOVÁNÍ TEPU
-  // checkForBeat je hrozně rychlá funkce, co jen kouká na "kopečky" v signálu
   if (checkForBeat(irValue) == true) {
     long delta = millis() - lastBeat;
     lastBeat = millis();
@@ -47,8 +46,6 @@ void loop() {
     
     if (beatsPerMinute < 160 && beatsPerMinute > 40) {
       beatAvg = (int)beatsPerMinute; 
-      // Můžeš si tady odkomentovat řádek níže, pokud chceš vidět tep hned v Serialu
-      // Serial.print("Beat! Aktuální tep: "); Serial.println(beatAvg);
     }
   }
 
@@ -70,11 +67,8 @@ void loop() {
     // Posíláme nejnovější vypočítaný tep a kyslík
     btSerial.print(beatAvg);
     btSerial.print(",");
-    // Pokud je měření SPO2 neplatné, pošleme 98 (aby to v grafu nekazilo křivku)
     if (validSPO2 && spo2 > 80 && spo2 <= 100) {
       btSerial.println(spo2);
-    } else {
-      btSerial.println(98); 
     }
     
     Serial.print("--- Odeslano do Pythonu: HR "); Serial.print(beatAvg);
